@@ -2,6 +2,7 @@ module Lib where
 
 import Data.Graph 
 import Data.Array 
+import Data.List           (genericDrop)
 import System.Random       
 import System.IO.Unsafe    (unsafeInterleaveIO, unsafePerformIO)
 import Control.Monad       (liftM2, join)
@@ -104,6 +105,19 @@ getWalksWithReps gr =
       d ls  = join [  if (last l `elem` init l)
                       then [l] 
                       else [l ++ [j] | j <- gr ! last l] 
+                    | l <- ls ]
+      go ls = if (d ls == ls) then ls else (go $ d ls)
+  in  go p0 
+
+-- Is this algorithm correct? 
+-- (Same efficiency concern as for 'getWalksWithReps')
+getCycles :: Graph -> [[Vertex]]
+getCycles gr = 
+  let p0    = return <$> (range $ bounds gr) :: [[Vertex]]
+      d ls  = join [  if (last l `elem` init l)
+                      then [l] 
+                      else [l ++ [j] | j <- gr ! last l,
+                                       not (j `elem` (genericDrop 1 . init $ l))] 
                     | l <- ls ]
       go ls = if (d ls == ls) then ls else (go $ d ls)
   in  go p0 
