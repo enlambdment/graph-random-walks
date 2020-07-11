@@ -88,6 +88,28 @@ makeRandomWalkL = doRandomWalk getRandomWalkL
 
 ----------------------------------------------------------------
 
+-- Given a graph       gr :: Graph ~ Array Vertex [Vertex],
+-- get the list of all walks with repetitions (these are not
+-- cycles because a cycle is supposed to *start and end*
+-- on the same vertex.)
+
+-- This is not as efficient as it could be, because for every
+-- step p_n -> p_(n+1) := d p_n, 
+-- walks which previous steps may have recognized should *not* 
+-- get processed further have to be recognized *again* as not 
+-- needing further processing.
+getWalksWithReps :: Graph -> [[Vertex]]
+getWalksWithReps gr = 
+  let p0    = return <$> (range $ bounds gr) :: [[Vertex]]
+      d ls  = join [  if (last l `elem` init l)
+                      then [l] 
+                      else [l ++ [j] | j <- gr ! last l] 
+                    | l <- ls ]
+      go ls = if (d ls == ls) then ls else (go $ d ls)
+  in  go p0 
+
+----------------------------------------------------------------
+
 -- an example
 type Node = Char
 type Key  = Int

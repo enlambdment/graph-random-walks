@@ -6,7 +6,7 @@ import Lib
 import Test.QuickCheck
 import Data.Graph 
 import Data.Array 
-import System.Random       -- Control.Monad.Random might work better for this problem
+import System.Random       
 import System.IO.Unsafe    (unsafeInterleaveIO, unsafePerformIO)
 import Control.Monad       (liftM2, liftM3, join)
 import Control.Applicative (liftA2)
@@ -42,11 +42,11 @@ prop_TerminatingRandomWalk_WellFormed gr v =
   -- 0. short-circuit in case that 'not (v `vertexInGraph` gr)'
       ((not $ v `vertexInGraph` gr) && len_w == 0) ||
   -- 1. element 0 should be the input (v :: Vertex)
-      (v == walk !! 0) &&
+      ((v == walk !! 0) &&
   -- 2. element (j+1) should have an edge *to* it
   --    *from* element j, along graph (gr :: Graph)
-      (and [ walk !! j + 1 `elem` 
-             gr ! (walk !! j)     | j <- [0..(len_w - 2)] ])
+      (and [ (walk !! (j + 1)) `elem` 
+             (gr ! (walk !! j))     | j <- [0..(len_w - 2)] ]))
 
 -- 2. 
 
@@ -65,11 +65,15 @@ prop_NonterminatingRandomWalk_WellFormed gr v =
   -- 0. short-circuit in case that 'not (v `vertexInGraph` gr)'
       ((not $ v `vertexInGraph` gr) && length walk100 == 0) ||
   -- 1. element 0 should be the input (v :: Vertex)
-      (v == walk100 !! 0) &&
+      ((v == walk100 !! 0) &&
   -- 2. element (j+1) should have an edge *to* it
-  --    *from* element j, along graph (gr :: Graph)
+  --    *from* element j, along graph (gr :: Graph).
+  --    For arbitrary (gr :: Graph), (v :: Vertex),
+  --    the resulting random walk *may in fact terminate.*
+  --    So be sure that j doesn't range over indexes that are too large. 
       (and [ (walk100 !! (j + 1)) `elem` 
-             (gr ! (walk100 !! j))     | j <- [0..(100 - 2)] ])
+             (gr ! (walk100 !! j))     
+                | j <- [0..((min (length walk100) 100) - 2)] ]))
 
 -- Enforces the requirement that we should have 
 --    v `vertexInGraph` gr
@@ -130,9 +134,19 @@ instance Arbitrary Graph where
 --           -- Defined in ‘HCodecs-0.5.1:Codec.Internal.Arbitrary’
 -}
 
+instance Arbitrary (Array Vertex [Vertex]) where 
+  arbitrary :: Gen (Array Vertex [Vertex]) 
+  arbitrary = genGraph
+
 main :: IO ()
 main = do 
   quickCheck $ prop_TerminatingRandomWalk_WellFormed    myGraph
   quickCheck $ prop_NonterminatingRandomWalk_WellFormed myGraph2
   quickCheck $ vertInGraph_TerminatingRandomWalk_WellFormed     myGraph
   quickCheck $ vertInGraph_NonterminatingRandomWalk_WellFormed  myGraph2
+  -- on arbitrary graphs; on arbitrary Vertex values
+  -- (A random graph may have no terminating random walks, in general.
+  --  So it's safest to use 'prop_Nonterminating[...]')
+  quickCheck $ prop_NonterminatingRandomWalk_WellFormed
+  -- on arbitrary graphs; on Vertex values present in the graph
+  quickCheck $ vertInGraph_NonterminatingRandomWalk_WellFormed
